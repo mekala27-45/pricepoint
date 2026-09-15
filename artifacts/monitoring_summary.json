@@ -1,0 +1,8 @@
+{
+  "weeks": 77,
+  "triggers": 39,
+  "completed_refits": 38,
+  "runtime_seconds": 122.58476589999918,
+  "warmup_weeks": 26,
+  "methodology": "Walk-forward simulation of C2 on all products with available features, with an initial training warmup. Each trigger observes completed sales, waits until that information is available at a later decision cutoff, and refits. This does not automatically promote models into the service."
+}
