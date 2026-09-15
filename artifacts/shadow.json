@@ -1,0 +1,8 @@
+{
+  "samples": 4403,
+  "p50_units": 62.08598453777893,
+  "p95_units": 1243.7548218020977,
+  "p99_units": 2769.8769939983963,
+  "mean_units": 249.14913631296386,
+  "methodology": "Incumbent and candidate scored the same precomputed product-price grid; absolute disagreement in gross units, descriptive grid distribution rather than traffic-weighted production statistics."
+}

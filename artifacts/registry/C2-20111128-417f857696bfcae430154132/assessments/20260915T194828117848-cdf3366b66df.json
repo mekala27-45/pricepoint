@@ -1,0 +1,245 @@
+{
+  "assessment_id": "20260915T194828117848-cdf3366b66df",
+  "version": "C2-20111128-417f857696bfcae430154132",
+  "recorded_at": "2026-09-15T19:48:28.117848+00:00",
+  "artifact_sha256": "ab90bbde11e31d8b3827f7374dcb7590b48b5eb1ef86947ee22ee5427946bff9",
+  "gates": [
+    {
+      "name": "wape_improvement",
+      "passed": false,
+      "reason": "At least 2% relative WAPE improvement over a positive incumbent WAPE is required",
+      "evidence": {
+        "candidate": 0.71498230952005,
+        "incumbent": 0.7043448617964171
+      }
+    },
+    {
+      "name": "category_non_regression",
+      "passed": false,
+      "reason": "Every incumbent category must be present and degrade by at most 5% relative",
+      "evidence": {
+        "candidate": {
+          "bags": 0.552482125650798,
+          "decor": 0.721183543952411,
+          "garden": 1.2601678561840508,
+          "kitchen": 0.7289158749787571,
+          "lighting": 0.7225381602885098,
+          "other": 0.7357368463548563,
+          "seasonal": 0.5529393276208043,
+          "stationery": 0.7395107025447141,
+          "toys": 0.8774127459609724
+        },
+        "incumbent": {
+          "bags": 0.6000327769653573,
+          "decor": 0.7057941284616724,
+          "garden": 1.2176552761659145,
+          "kitchen": 0.7299709742878426,
+          "lighting": 0.7097074431139389,
+          "other": 0.7273372288730923,
+          "seasonal": 0.5263315559283446,
+          "stationery": 0.7228131050262754,
+          "toys": 0.9903409090909091
+        }
+      }
+    },
+    {
+      "name": "latency",
+      "passed": true,
+      "reason": "Measured p99 must be below 15ms with at least 100 single-prediction observations",
+      "evidence": {
+        "p99_ms": 0.8527469990985992,
+        "samples": 1000
+      }
+    },
+    {
+      "name": "coverage",
+      "passed": true,
+      "reason": "Held-out test coverage must be within 2 percentage points of nominal",
+      "evidence": {
+        "coverage": 0.9040156709108716,
+        "nominal": 0.9,
+        "samples": 20420,
+        "split": "held_out_test"
+      }
+    },
+    {
+      "name": "schema",
+      "passed": true,
+      "reason": "Ordered feature names, Float64 types, and contract version must match exactly",
+      "evidence": {
+        "candidate": {
+          "version": "1",
+          "features": [
+            {
+              "name": "price",
+              "dtype": "float64"
+            },
+            {
+              "name": "relative_price",
+              "dtype": "float64"
+            },
+            {
+              "name": "log_price",
+              "dtype": "float64"
+            },
+            {
+              "name": "lag1",
+              "dtype": "float64"
+            },
+            {
+              "name": "lag2",
+              "dtype": "float64"
+            },
+            {
+              "name": "lag4",
+              "dtype": "float64"
+            },
+            {
+              "name": "lag52",
+              "dtype": "float64"
+            },
+            {
+              "name": "mean4",
+              "dtype": "float64"
+            },
+            {
+              "name": "std4",
+              "dtype": "float64"
+            },
+            {
+              "name": "weeks_since_change",
+              "dtype": "float64"
+            },
+            {
+              "name": "last_change",
+              "dtype": "float64"
+            },
+            {
+              "name": "category_mean",
+              "dtype": "float64"
+            },
+            {
+              "name": "week_sin",
+              "dtype": "float64"
+            },
+            {
+              "name": "week_cos",
+              "dtype": "float64"
+            },
+            {
+              "name": "holiday_distance",
+              "dtype": "float64"
+            },
+            {
+              "name": "age_weeks",
+              "dtype": "float64"
+            },
+            {
+              "name": "zero_fraction",
+              "dtype": "float64"
+            },
+            {
+              "name": "trend",
+              "dtype": "float64"
+            }
+          ]
+        },
+        "serving": {
+          "version": "1",
+          "features": [
+            {
+              "name": "price",
+              "dtype": "float64"
+            },
+            {
+              "name": "relative_price",
+              "dtype": "float64"
+            },
+            {
+              "name": "log_price",
+              "dtype": "float64"
+            },
+            {
+              "name": "lag1",
+              "dtype": "float64"
+            },
+            {
+              "name": "lag2",
+              "dtype": "float64"
+            },
+            {
+              "name": "lag4",
+              "dtype": "float64"
+            },
+            {
+              "name": "lag52",
+              "dtype": "float64"
+            },
+            {
+              "name": "mean4",
+              "dtype": "float64"
+            },
+            {
+              "name": "std4",
+              "dtype": "float64"
+            },
+            {
+              "name": "weeks_since_change",
+              "dtype": "float64"
+            },
+            {
+              "name": "last_change",
+              "dtype": "float64"
+            },
+            {
+              "name": "category_mean",
+              "dtype": "float64"
+            },
+            {
+              "name": "week_sin",
+              "dtype": "float64"
+            },
+            {
+              "name": "week_cos",
+              "dtype": "float64"
+            },
+            {
+              "name": "holiday_distance",
+              "dtype": "float64"
+            },
+            {
+              "name": "age_weeks",
+              "dtype": "float64"
+            },
+            {
+              "name": "zero_fraction",
+              "dtype": "float64"
+            },
+            {
+              "name": "trend",
+              "dtype": "float64"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "training_serving_skew",
+      "passed": true,
+      "reason": "Independent-path skew on at least 500 pairs must be within the stated tight tolerance",
+      "evidence": {
+        "max_abs": 1.1368683772161603e-13,
+        "pairs": 500,
+        "tolerance": 1e-09
+      }
+    }
+  ],
+  "metadata": {
+    "backtest_sha256": "c3c5be8f419ea0ec40800b4ee7923741630de4989b7de8c7c687dc0faeb8800f",
+    "latency_sha256": "11723000fbe3aeb82a528de534354fd3b8fedc81b9e161136b12f2516802f2b0",
+    "skew_sha256": "99cc15101e3310f5b034f76806698cb210eb95d098223570febd77ef9e8a6280",
+    "compared_incumbent": "B2-20111128-33c7c8ff9f6d",
+    "incumbent_comparable": true,
+    "comparison_reason": "Retained incumbent has identical persistence-rule state and feature contract"
+  }
+}
