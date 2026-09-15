@@ -1,0 +1,49 @@
+{
+  "workflow_run": "https://github.com/mekala27-45/pricepoint/actions/runs/35018703216",
+  "job": "https://github.com/mekala27-45/pricepoint/actions/runs/35018703216/job/104548653883",
+  "commit": "a3675d502b6712b28a02b9ef3b794c4e2d5467ba",
+  "artifact_id": 10416846989,
+  "artifact_zip_sha256": "866e7c18041972bdf578965a6e97f97360465700ea688d9fd16d3d1709c86147",
+  "loadtest_sha256": "b8b2a559d83c7e7055e777ebb4b48713b0b5ad014930d4ac1b947cc8826de327",
+  "runner": "GitHub-hosted ubuntu-24.04 x86_64, client on runner over published container port",
+  "application_image": {
+    "Id": "sha256:3f46c065c293ade03a5421b1231c5b4a4a640905a39310772d8f9984f35ea6ba",
+    "RepoTags": [
+      "pricepoint:latest"
+    ],
+    "RepoDigests": [],
+    "Architecture": "amd64",
+    "Os": "linux",
+    "Size": 1927485740,
+    "Created": "2026-09-15T20:18:30.111873593Z"
+  },
+  "base_images": [
+    {
+      "Id": "sha256:59bf1d95c965f12dfc14afaf5af778fc1dbe5b372bd5c281645fc34d4c75d4e7",
+      "RepoTags": [
+        "python:3.12.14-slim-bookworm"
+      ],
+      "RepoDigests": [
+        "python@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254"
+      ],
+      "Architecture": "amd64",
+      "Os": "linux",
+      "Size": 124330207,
+      "Created": "2026-09-01T00:12:51.874345198Z"
+    },
+    {
+      "Id": "sha256:a0ce2c74c6e7ef09794eaf61b99a6a519658f33aa4f6ddcb5cfaca2f83ce72bb",
+      "RepoTags": [
+        "ghcr.io/astral-sh/uv:0.11.33"
+      ],
+      "RepoDigests": [
+        "ghcr.io/astral-sh/uv@sha256:77280f2f771df71f90786c314fe1bbc1e023feac652969bbf139c280babf2eb7"
+      ],
+      "Architecture": "amd64",
+      "Os": "linux",
+      "Size": 53634888,
+      "Created": "2026-07-28T09:39:24.863677313Z"
+    }
+  ],
+  "note": "This is the first successful container benchmark after correcting image ownership. It is a single host load measurement, not a production SLO."
+}

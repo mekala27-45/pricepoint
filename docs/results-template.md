@@ -52,6 +52,8 @@ This is a development-machine measurement, including shadow scoring. It is not a
 
 {{container}}
 
+The [benchmark provenance](artifacts/container-provenance.json) records the successful CI run, tested commit, artifact checksum, base image digests and application image identity. This is a single-run host measurement with closed-loop clients; it does not establish a production latency SLO.
+
 ## Shadow disagreement
 
 {{shadow}}
