@@ -1,0 +1,53 @@
+[project]
+name = "pricepoint"
+version = "0.1.0"
+description = "Price elasticity and constrained markdown decisions on public retail data"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "pricepoint-core", "pricepoint-data", "pricepoint-models", "pricepoint-serve", "pricepoint-monitor",
+  "typer>=0.16", "rich>=13.9", "mlflow-skinny>=2.22,<4", "httpx>=0.28",
+]
+
+[project.scripts]
+pricepoint = "pricepoint_core.cli:app"
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+pricepoint-core = { workspace = true }
+pricepoint-data = { workspace = true }
+pricepoint-models = { workspace = true }
+pricepoint-serve = { workspace = true }
+pricepoint-monitor = { workspace = true }
+
+[dependency-groups]
+dev = ["pytest>=8.3", "pytest-cov>=6", "hypothesis>=6.130", "ruff>=0.11", "mypy>=1.15", "asgi-lifespan>=2.1", "pillow>=11", "types-requests", "pandas-stubs"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [".cache", ".runtime", "web"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["packages"]
+ignore_missing_imports = true
+explicit_package_bases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = ["external: requires an explicitly probed external executable"]
+
+[tool.coverage.run]
+source = ["pricepoint_core", "pricepoint_data", "pricepoint_models", "pricepoint_serve", "pricepoint_monitor"]
+omit = ["*/cli.py"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
