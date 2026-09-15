@@ -2,25 +2,31 @@ from datetime import date
 from uuid import UUID
 
 import pytest
-from pydantic import ValidationError
-
 from pricepoint_core.metrics import metric_stat, wape
 from pricepoint_core.schemas import CurveRequest, MetricStat, OptimizeRequest, PredictRequest, uuid7
+from pydantic import ValidationError
 
 
 def test_strict_requests() -> None:
-    request = PredictRequest.model_validate({"product_id": "A", "price": 3.0, "as_of": "2011-01-03"})
+    request = PredictRequest.model_validate(
+        {"product_id": "A", "price": 3.0, "as_of": "2011-01-03"}
+    )
     assert request.as_of == date(2011, 1, 3)
     for price in ["3", -1, float("nan")]:
         with pytest.raises(ValidationError):
-            PredictRequest.model_validate({"product_id": "A", "price": price, "as_of": "2011-01-03"})
+            PredictRequest.model_validate(
+                {"product_id": "A", "price": price, "as_of": "2011-01-03"}
+            )
     with pytest.raises(ValidationError):
-        PredictRequest.model_validate({"product_id": "A", "price": 3.0, "as_of": "2011-01-03", "oops": 1})
+        PredictRequest.model_validate(
+            {"product_id": "A", "price": 3.0, "as_of": "2011-01-03", "oops": 1}
+        )
     with pytest.raises(ValidationError):
         CurveRequest(product_id="A", price_grid=[1.0, float("inf")], as_of=date.today())
     with pytest.raises(ValidationError):
-        OptimizeRequest(product_id="A", current_price=2.0, cost_floor=1.0,
-                        min_markdown=0.8, max_markdown=0.2)
+        OptimizeRequest(
+            product_id="A", current_price=2.0, cost_floor=1.0, min_markdown=0.8, max_markdown=0.2
+        )
 
 
 def test_metrics_do_not_hide_undefined_cases() -> None:

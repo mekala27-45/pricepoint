@@ -1,4 +1,5 @@
 """Versioned contracts and validated public API payloads."""
+
 from __future__ import annotations
 
 import math
@@ -12,9 +13,24 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 FEATURE_NAMES = (
-    "price", "relative_price", "log_price", "lag1", "lag2", "lag4", "lag52",
-    "mean4", "std4", "weeks_since_change", "last_change", "category_mean",
-    "week_sin", "week_cos", "holiday_distance", "age_weeks", "zero_fraction", "trend",
+    "price",
+    "relative_price",
+    "log_price",
+    "lag1",
+    "lag2",
+    "lag4",
+    "lag52",
+    "mean4",
+    "std4",
+    "weeks_since_change",
+    "last_change",
+    "category_mean",
+    "week_sin",
+    "week_cos",
+    "holiday_distance",
+    "age_weeks",
+    "zero_fraction",
+    "trend",
 )
 FEATURE_CONTRACT = {
     "version": "1",
@@ -113,8 +129,10 @@ def uuid7() -> str:
         milliseconds = time.time_ns() // 1_000_000
         random_bits = secrets.randbits(74)
         value = (
-            (milliseconds << 80) | (7 << 76)
-            | ((random_bits >> 62) << 64) | (2 << 62)
+            (milliseconds << 80)
+            | (7 << 76)
+            | ((random_bits >> 62) << 64)
+            | (2 << 62)
             | (random_bits & ((1 << 62) - 1))
         )
         if value <= _last_uuid_int:

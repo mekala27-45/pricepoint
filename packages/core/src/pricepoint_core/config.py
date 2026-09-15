@@ -1,4 +1,5 @@
 """Explicit paths and serving environment settings."""
+
 from __future__ import annotations
 
 import os

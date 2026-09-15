@@ -1,4 +1,5 @@
 """Errors measured on demand, with explicit undefined cases."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -20,6 +21,8 @@ def wape(actual: ArrayLike, predicted: ArrayLike) -> float:
 def metric_stat(values: list[float]) -> MetricStat:
     if not values or not np.isfinite(values).all():
         raise ValueError("Metrics must be finite and nonempty")
-    return MetricStat(mean=float(np.mean(values)),
-                      std=float(np.std(values, ddof=1)) if len(values) > 1 else 0.0,
-                      n=len(values))
+    return MetricStat(
+        mean=float(np.mean(values)),
+        std=float(np.std(values, ddof=1)) if len(values) > 1 else 0.0,
+        n=len(values),
+    )
