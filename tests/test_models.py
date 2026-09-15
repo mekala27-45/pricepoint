@@ -19,12 +19,40 @@ from pricepoint_models import (
     CalibratedModel,
     CategoryElasticityModel,
     LightGBMDemandModel,
+    Registry,
     load_model,
     rolling_origin_splits,
     run_backtest,
 )
 from pricepoint_models.backtest import analytical_summary, mase, training_scales, wape
 from pricepoint_models.estimators import conformal_radius, matrix, targets
+
+
+def test_batch_model_and_serving_feature_contracts_are_identical() -> None:
+    from pricepoint_core.schemas import FEATURE_CONTRACT
+    from pricepoint_data.features import FEATURE_NAMES as DATA_FEATURE_NAMES
+    from pricepoint_models import feature_contract
+
+    assert FEATURE_NAMES == DATA_FEATURE_NAMES
+    assert feature_contract() == FEATURE_CONTRACT
+
+
+def test_synthetic_recovery_artifact_matches_reproducible_estimates() -> None:
+    from scripts.validate_synthetic import validate
+
+    actual = validate()
+    artifact = json.loads(
+        (Path(__file__).resolve().parents[1] / "artifacts" / "synthetic_validation.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert actual["categories_recovered"] == actual["categories"] == 4
+    assert actual["true_coefficient"] == -1.5
+    for observed, stored in zip(actual["estimates"], artifact["estimates"], strict=True):
+        assert observed["category"] == stored["category"]
+        assert observed["after"] == pytest.approx(stored["after"], abs=1e-10)
+        assert observed["after_low"] == pytest.approx(stored["after_low"], abs=1e-10)
+        assert observed["after_high"] == pytest.approx(stored["after_high"], abs=1e-10)
 
 
 def demand_features(products: int = 24, weeks: int = 45) -> pl.DataFrame:
@@ -148,6 +176,10 @@ def test_lightgbm_deterministic_quantiles_and_roundtrip(
     low, high = loaded.predict_quantiles(features)
     np.testing.assert_array_equal(low, lower)
     np.testing.assert_array_equal(high, upper)
+    registry = Registry(tmp_path / "registry")
+    initial = registry.register(calibrated, {}, version="deterministic-lightgbm")
+    retried = registry.register(calibrated, {}, version="deterministic-lightgbm")
+    assert initial["sha256"] == retried["sha256"]
     with pytest.raises(ValueError, match="Refitting"):
         loaded.fit(features)
     with pytest.raises(ValueError, match="Only"):
