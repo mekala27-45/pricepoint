@@ -11,7 +11,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
+from scripts.paths import project_root
+
+ROOT = project_root()
 
 
 def resolve(value: Any, pointer: str) -> Any:

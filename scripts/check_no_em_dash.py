@@ -5,7 +5,9 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+from scripts.paths import project_root
+
+ROOT = project_root()
 TEXT_SUFFIXES = {
     ".py",
     ".md",

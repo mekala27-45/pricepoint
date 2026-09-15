@@ -14,7 +14,9 @@ import numpy as np
 import polars as pl
 import statsmodels.api as sm
 
-ROOT = Path(__file__).resolve().parents[1]
+from scripts.paths import project_root
+
+ROOT = project_root()
 ARTIFACTS = ROOT / "artifacts"
 
 

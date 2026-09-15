@@ -16,7 +16,9 @@ from typing import Any
 import polars as pl
 from pricepoint_models.backtest import BacktestResult, run_backtest
 
-ROOT = Path(__file__).resolve().parents[1]
+from scripts.paths import project_root
+
+ROOT = project_root()
 ARTIFACTS = ROOT / "artifacts"
 
 

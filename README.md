@@ -53,6 +53,8 @@ npm run dev
 
 On Windows PowerShell, the same uv commands work; Make is optional.
 
+Release wheels contain executable packages. Data, configuration and model artifacts live in the checkout or extracted source archive. Run evidence commands from that directory, or set `PRICEPOINT_ROOT` to its absolute path. Serving can also use explicit `PRICEPOINT_REGISTRY` and `PRICEPOINT_PANEL` paths.
+
 ## Reproduce the evidence
 
 ~~~sh

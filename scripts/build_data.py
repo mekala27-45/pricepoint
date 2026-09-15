@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
 
 from pricepoint_data import DataConfig, build_panel, clean, ingest, make_features, select_universe
 
-ROOT = Path(__file__).resolve().parents[1]
+from scripts.paths import project_root
+
+ROOT = project_root()
 
 
 def build_data() -> None:
