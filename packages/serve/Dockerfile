@@ -14,7 +14,8 @@ COPY scripts ./scripts
 RUN uv sync --frozen --no-dev
 COPY artifacts/registry ./artifacts/registry
 COPY artifacts/serving_panel.parquet ./artifacts/serving_panel.parquet
-RUN useradd --uid 10001 --create-home pricepoint && chown -R pricepoint:pricepoint /app
+RUN useradd --uid 10001 --create-home pricepoint \
+    && chown -R pricepoint:pricepoint /app/artifacts
 USER pricepoint
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \

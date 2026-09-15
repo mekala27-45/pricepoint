@@ -7,9 +7,9 @@ Price elasticity and constrained markdown decisions on public retail data.
 **[Open the demo](https://mekala27-45.github.io/pricepoint/)** | [Measured results](RESULTS.md) | [Architecture](ARCHITECTURE.md) | [Runbook](docs/runbook.md)
 
 <!-- skew:start -->
-500 sampled feature vectors, two independent computation paths, maximum absolute difference of 1.137e-13.
+1. 500 sampled feature vectors, two independent computation paths, maximum absolute difference of 1.137e-13.
 
-200 future-deletion checks passed with maximum difference 0.000e+00. Stored pairs and the panel hash make the sample repeatable.
+2. 200 future-deletion checks passed with maximum difference 0.000e+00. Stored pairs and the panel hash make the sample repeatable.
 <!-- skew:end -->
 
 ![Pricepoint explorer, price slider and revenue response](docs/demo.gif)

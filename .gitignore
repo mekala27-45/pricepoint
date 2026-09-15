@@ -19,5 +19,4 @@ web/*.tsbuildinfo
 *.log
 dist/
 *.egg-info/
-artifacts/loadtest-container.json
 

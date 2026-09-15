@@ -146,9 +146,9 @@ Incumbent: B2-20111128-33c7c8ff9f6d. Candidate promoted: false.
 ## Training and serving agreement
 
 <!-- skew:start -->
-500 sampled feature vectors, two independent computation paths, maximum absolute difference of 1.137e-13.
+1. 500 sampled feature vectors, two independent computation paths, maximum absolute difference of 1.137e-13.
 
-200 future-deletion checks passed with maximum difference 0.000e+00. Stored pairs and the panel hash make the sample repeatable.
+2. 200 future-deletion checks passed with maximum difference 0.000e+00. Stored pairs and the panel hash make the sample repeatable.
 <!-- skew:end -->
 
 The tests deliberately round a serving feature differently and verify the gate refuses it. Both paths retain the same known historical rows, including the observed first partial week; incomplete weeks are excluded as evaluation labels.

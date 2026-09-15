@@ -39,9 +39,9 @@ def render_sections() -> dict[str, str]:
         ],
     )
     result["skew"] = (
-        f"{skew['pairs']} sampled feature vectors, two independent computation paths, "
+        f"1. {skew['pairs']} sampled feature vectors, two independent computation paths, "
         f"maximum absolute difference of {skew['max_abs_difference']:.3e}.\n\n"
-        f"{leakage['pairs']} future-deletion checks passed with maximum difference "
+        f"2. {leakage['pairs']} future-deletion checks passed with maximum difference "
         f"{leakage['max_abs_difference']:.3e}. Stored pairs and the panel hash make the sample repeatable."
     )
     result["folds"] = table(
@@ -182,6 +182,19 @@ def render_sections() -> dict[str, str]:
             + f"\n\nContainer TCP measurement: {container['duration_requested_s']:.0f}s at concurrency "
             + f"{container['concurrency']}, {container['warmup_requests']} warmup requests, "
             + f"{container['platform']}. CI stores the resolved base and built image identifiers."
+            + f"\n\n{container['methodology']}"
+            + "\n\n"
+            + table(
+                ["Latency bin (ms)", "Successful requests"],
+                [
+                    [
+                        f"{row['low_ms']:g} to "
+                        + (f"{row['high_ms']:g}" if row["high_ms"] is not None else "infinity"),
+                        str(row["count"]),
+                    ]
+                    for row in container["histogram"]
+                ],
+            )
         )
     else:
         result["container"] = (
