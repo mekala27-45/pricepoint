@@ -1,0 +1,121 @@
+Synthetic validation evidence:
+
+    {
+      "measured_at": "2026-09-15T19:28:54.939640+00:00",
+      "seed": 42,
+      "rows": 13312,
+      "products": 128,
+      "weeks": 104,
+      "true_coefficient": -1.5,
+      "confidence_level": 0.95,
+      "categories_recovered": 4,
+      "categories": 4,
+      "estimates": [
+        {
+          "category": "synthetic_0",
+          "status": "estimated",
+          "rows": 3328,
+          "products": 32,
+          "before": 0.6594923374946422,
+          "before_se": 0.09433904833181522,
+          "before_low": 0.4745912004285009,
+          "before_high": 0.8443934745607835,
+          "after": -1.4671783051606715,
+          "after_se": 0.02141363270850733,
+          "after_low": -1.5091482540475147,
+          "after_high": -1.4252083562738282,
+          "covariance": "product_cluster",
+          "controls": [
+            "product_fixed_effects",
+            "week_sin",
+            "week_cos",
+            "trend",
+            "zero_fraction"
+          ],
+          "outcome": "log1p(units)",
+          "interpretation": "Lagged historical-price association with log1p gross units; not contemporaneous or causal elasticity",
+          "true_coefficient": -1.5,
+          "contains_true_coefficient": true
+        },
+        {
+          "category": "synthetic_1",
+          "status": "estimated",
+          "rows": 3328,
+          "products": 32,
+          "before": 0.6838963390834589,
+          "before_se": 0.09557943488596372,
+          "before_low": 0.49656408904427884,
+          "before_high": 0.871228589122639,
+          "after": -1.4934101235384603,
+          "after_se": 0.015896606635606613,
+          "after_low": -1.5245669000206497,
+          "after_high": -1.4622533470562709,
+          "covariance": "product_cluster",
+          "controls": [
+            "product_fixed_effects",
+            "week_sin",
+            "week_cos",
+            "trend",
+            "zero_fraction"
+          ],
+          "outcome": "log1p(units)",
+          "interpretation": "Lagged historical-price association with log1p gross units; not contemporaneous or causal elasticity",
+          "true_coefficient": -1.5,
+          "contains_true_coefficient": true
+        },
+        {
+          "category": "synthetic_2",
+          "status": "estimated",
+          "rows": 3328,
+          "products": 32,
+          "before": 0.6642015845323339,
+          "before_se": 0.09683164959515789,
+          "before_low": 0.4744150387622219,
+          "before_high": 0.8539881303024459,
+          "after": -1.4943430490347662,
+          "after_se": 0.019442731868587554,
+          "after_low": -1.532450103258267,
+          "after_high": -1.4562359948112655,
+          "covariance": "product_cluster",
+          "controls": [
+            "product_fixed_effects",
+            "week_sin",
+            "week_cos",
+            "trend",
+            "zero_fraction"
+          ],
+          "outcome": "log1p(units)",
+          "interpretation": "Lagged historical-price association with log1p gross units; not contemporaneous or causal elasticity",
+          "true_coefficient": -1.5,
+          "contains_true_coefficient": true
+        },
+        {
+          "category": "synthetic_3",
+          "status": "estimated",
+          "rows": 3328,
+          "products": 32,
+          "before": 0.6739691302512414,
+          "before_se": 0.1008108977973,
+          "before_low": 0.4763834013193851,
+          "before_high": 0.8715548591830977,
+          "after": -1.5163397436339054,
+          "after_se": 0.020428180330161926,
+          "after_low": -1.5563782413507123,
+          "after_high": -1.4763012459170985,
+          "covariance": "product_cluster",
+          "controls": [
+            "product_fixed_effects",
+            "week_sin",
+            "week_cos",
+            "trend",
+            "zero_fraction"
+          ],
+          "outcome": "log1p(units)",
+          "interpretation": "Lagged historical-price association with log1p gross units; not contemporaneous or causal elasticity",
+          "true_coefficient": -1.5,
+          "contains_true_coefficient": true
+        }
+      ],
+      "methodology": "Known log1p-demand process with product effects, seasonality, trend, a simulated availability covariate in the zero_fraction slot, and independent Gaussian price and outcome perturbations. All rows fit the recovery experiment; no data split or predictive-performance claim is made. The remaining features are adapter inputs unused by C1. Product-cluster covariance supplies the confidence intervals.",
+      "limitation": "Recovery under known exogenous within-product price variation checks estimator arithmetic. Real retail prices are observational and need not satisfy that assumption."
+    }

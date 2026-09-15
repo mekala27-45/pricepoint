@@ -1,0 +1,1 @@
+Candidate inference p99: 0.853 ms from 1000 measured requests. Warm single-candidate prediction in process, Python feature store plus Polars row construction and calibrated LightGBM scoring; excludes HTTP, logging and container overhead.

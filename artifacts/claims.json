@@ -1,5 +1,86 @@
 {
   "schema_version": "1",
   "claims": [],
-  "blocks": []
+  "blocks": [
+    {
+      "id": "summary",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/summary.md"
+    },
+    {
+      "id": "skew",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/skew.md"
+    },
+    {
+      "id": "folds",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/folds.md"
+    },
+    {
+      "id": "splits",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/splits.md"
+    },
+    {
+      "id": "elasticity",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/elasticity.md"
+    },
+    {
+      "id": "coverage",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/coverage.md"
+    },
+    {
+      "id": "promotion",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/promotion.md"
+    },
+    {
+      "id": "latency",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/latency.md"
+    },
+    {
+      "id": "gate_latency",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/gate_latency.md"
+    },
+    {
+      "id": "container",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/container.md"
+    },
+    {
+      "id": "shadow",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/shadow.md"
+    },
+    {
+      "id": "monitoring",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/monitoring.md"
+    },
+    {
+      "id": "experiment",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/experiment.md"
+    },
+    {
+      "id": "synthetic",
+      "document": "RESULTS.md",
+      "source": "artifacts/reports/synthetic.md"
+    },
+    {
+      "id": "summary",
+      "document": "README.md",
+      "source": "artifacts/reports/summary.md"
+    },
+    {
+      "id": "skew",
+      "document": "README.md",
+      "source": "artifacts/reports/skew.md"
+    }
+  ]
 }
