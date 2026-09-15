@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -268,3 +269,30 @@ def test_panel_marks_partial_source_boundary_weeks() -> None:
 def test_manual_lowercase_code_is_explicitly_excluded() -> None:
     result = clean(transactions([transaction(product_id="m"), transaction()]))
     assert result.counts["non_product_rows"] == 1
+
+
+def test_data_document_counts_match_stored_lineage() -> None:
+    root = Path(__file__).resolve().parents[1]
+    report = json.loads((root / "artifacts/data_report.json").read_text(encoding="utf-8"))
+    document = (root / "docs/data.md").read_text(encoding="utf-8")
+    published = [
+        line.split("|")[1:3]
+        for line in document.splitlines()
+        if line.startswith("| ")
+        and (
+            ".raw_rows |" in line
+            or line.split("|")[1]
+            .strip()
+            .startswith(("ingest.", "clean.", "panel_", "gold_", "universe."))
+        )
+    ]
+    assert len(published) >= 25
+    for pointer, count in published:
+        value = report
+        for part in pointer.strip().split("."):
+            value = value[part]
+        assert count.strip() == f"{value:,}"
+    clean_report = report["clean"]
+    assert clean_report["clean_rows"] + clean_report["quarantine_rows"] == (
+        clean_report["input_rows"] + clean_report["partial_credit_rows"]
+    )

@@ -84,6 +84,8 @@ def verify_panel(panel_path: str | Path, destination: str | Path) -> dict[str, d
             continue
         leakage_pairs.append((product, as_of))
         if as_of not in trimmed_stores:
+            trimmed_stores.clear()
+            trimmed_batches.clear()
             truncated = panel.filter(pl.col("week") < as_of)
             trimmed_stores[as_of] = ServingFeatureStore(truncated)
             trimmed_batches[as_of] = {
@@ -102,7 +104,10 @@ def verify_panel(panel_path: str | Path, destination: str | Path) -> dict[str, d
     common = {
         "panel_sha256": panel_hash,
         "tolerance": 1e-9,
-        "sampling": "Ten evenly spaced complete-week cutoffs; fifty hash-ordered products per cutoff, round-robin across derived categories.",
+        "sampling": (
+            "Ten evenly spaced complete-week cutoffs; fifty hash-ordered products per cutoff, "
+            "round-robin across derived categories."
+        ),
         "feature_names": list(FEATURE_NAMES),
         "source_panel_rows": panel.height,
     }
@@ -120,7 +125,10 @@ def verify_panel(panel_path: str | Path, destination: str | Path) -> dict[str, d
         "pairs": len(leakage_pairs),
         "max_abs_difference": maximum_leakage,
         "passed": maximum_leakage == 0.0,
-        "operation": "Delete every panel row at or after as_of, rebuild each independent path, compare every feature.",
+        "operation": (
+            "Delete every panel row at or after as_of, rebuild each independent path, "
+            "compare every feature."
+        ),
     }
     for name, result in (("skew", skew), ("leakage", leakage)):
         (target / f"{name}.json").write_text(json.dumps(result, indent=2), encoding="utf-8")

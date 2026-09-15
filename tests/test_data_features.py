@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from pathlib import Path
 
 import polars as pl
 import pytest
@@ -14,6 +15,7 @@ from pricepoint_data import (
     measure_skew,
 )
 from pricepoint_data.features import holiday_distance
+from pricepoint_data.verification import verification_pairs, verify_panel
 
 
 @pytest.fixture(scope="module")
@@ -174,3 +176,35 @@ def test_serving_store_retains_immutable_snapshot_and_recomputes_cutoffs(
 def test_gold_excludes_incomplete_observation_weeks(panel: pl.DataFrame) -> None:
     marked = panel.with_columns((pl.col("week") < date(2011, 1, 3)).alias("is_complete_week"))
     assert make_features(marked)["week"].max() == date(2010, 12, 27)
+
+
+def test_real_panel_verifier_persists_reproducible_evidence(
+    panel: pl.DataFrame, tmp_path: Path
+) -> None:
+    expanded = pl.concat(
+        [
+            panel.with_columns((pl.col("product_id") + str(index)).alias("product_id"))
+            for index in range(5)
+        ]
+    )
+    source = tmp_path / "panel.parquet"
+    expanded.write_parquet(source)
+    result = verify_panel(source, tmp_path / "evidence")
+    assert result["skew"]["pairs"] == 500
+    assert result["skew"]["passed"]
+    assert result["skew"]["deliberate_corruption_detected"]
+    assert result["leakage"]["pairs"] == 200
+    assert result["leakage"]["max_abs_difference"] == 0
+    assert result["leakage"]["passed"]
+    assert len(result["skew"]["panel_sha256"]) == 64
+    assert (tmp_path / "evidence/verification_pairs.json").exists()
+    assert verification_pairs(expanded) == verification_pairs(expanded)
+
+
+def test_real_verifier_rejects_insufficient_history_and_product_coverage(
+    panel: pl.DataFrame,
+) -> None:
+    with pytest.raises(ValueError, match="fourteen complete weeks"):
+        verification_pairs(panel.filter(pl.col("week") < date(2010, 2, 1)))
+    with pytest.raises(ValueError, match="fifty products"):
+        verification_pairs(panel)
