@@ -1,0 +1,13 @@
+[project]
+name = "pricepoint-data"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["pricepoint-core", "polars>=1.30", "fastexcel>=0.14", "openpyxl>=3.1", "holidays>=0.70"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pricepoint_data"]
+
