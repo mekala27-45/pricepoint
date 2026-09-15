@@ -1,0 +1,12 @@
+{
+  "sigma": 1.0326928933772548,
+  "assumed_elasticity": -1.5,
+  "price_change": 0.1,
+  "power": 0.8,
+  "alpha": 0.05,
+  "units_per_arm": 820,
+  "products_per_week": 200,
+  "weeks": 9,
+  "unit": "independent product-week observation, approximation only",
+  "methodology": "Two-arm normal approximation using measured held-out log1p-demand forecast residual SD. Serial dependence and interference are not estimated, so actual sizing must use a clustered pilot."
+}
