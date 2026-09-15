@@ -888,7 +888,7 @@ wheels = [
 [[package]]
 name = "pricepoint"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "httpx" },
     { name = "mlflow-skinny" },
