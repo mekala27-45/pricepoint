@@ -1,0 +1,38 @@
+{
+  "source": "UCI Online Retail II",
+  "sha256": "bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980",
+  "ingest": {
+    "raw_rows": 1067371,
+    "schema_valid_rows": 1067371,
+    "schema_quarantine_rows": 0,
+    "missing_customer_rows": 243007
+  },
+  "clean": {
+    "input_rows": 1067371,
+    "outside_country_rows": 86041,
+    "non_product_rows": 3624,
+    "non_positive_price_rows": 6129,
+    "zero_quantity_rows": 0,
+    "positive_credit_invoice_rows": 0,
+    "price_outlier_rows": 3258,
+    "matched_credit_rows": 13137,
+    "same_day_cancellation_rows": 1235,
+    "return_rows": 11902,
+    "unmatched_credit_rows": 2608,
+    "partial_credit_rows": 104,
+    "sale_rows": 952678,
+    "clean_rows": 965815,
+    "quarantine_rows": 101660
+  },
+  "panel_rows": 433107,
+  "panel_products": 4883,
+  "panel_weeks": 106,
+  "gold_rows": 418462,
+  "universe": {
+    "considered_products": 4882,
+    "included_products": 2834,
+    "too_few_sales_weeks": 1732,
+    "too_few_prices": 316
+  },
+  "target": "gross units; returns retained separately"
+}
