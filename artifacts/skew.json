@@ -1,0 +1,35 @@
+{
+  "panel_sha256": "41ab09324c05b9e803eda1c1ebe7573922da248bed9635b93179a676ba408343",
+  "tolerance": 1e-09,
+  "sampling": "Ten evenly spaced complete-week cutoffs; fifty hash-ordered products per cutoff, round-robin across derived categories.",
+  "feature_names": [
+    "price",
+    "relative_price",
+    "log_price",
+    "lag1",
+    "lag2",
+    "lag4",
+    "lag52",
+    "mean4",
+    "std4",
+    "weeks_since_change",
+    "last_change",
+    "category_mean",
+    "week_sin",
+    "week_cos",
+    "holiday_distance",
+    "age_weeks",
+    "zero_fraction",
+    "trend"
+  ],
+  "source_panel_rows": 433107,
+  "pairs": 500,
+  "max_abs_difference": 1.1368683772161603e-13,
+  "passed": true,
+  "paths": [
+    "Polars batch",
+    "Python ServingFeatureStore"
+  ],
+  "deliberate_rounding_corruption_max_abs_difference": 0.049781659388646204,
+  "deliberate_corruption_detected": true
+}
