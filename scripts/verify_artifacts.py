@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from statistics import NormalDist, fmean, stdev
 from typing import Any
@@ -270,6 +270,9 @@ def verify_bundle(root: Path) -> list[str]:
     bundle = read_json(root / "web/public/bundle.json")
     report = read_json(root / "artifacts/backtest.json")
     errors: list[str] = []
+    monitoring = read_json(root / "artifacts/monitoring.json")
+    if bundle["monitoring"] != monitoring:
+        errors.append("bundle monitoring differs from the complete recorded timeline")
     summaries = {row["model"]: row for row in report["summary"]}
     for row in bundle["backtest"]["summary"]:
         for metric in ("wape", "mase"):
@@ -314,6 +317,264 @@ def verify_bundle(root: Path) -> list[str]:
     return errors
 
 
+def verify_monitoring(artifacts: Path) -> list[str]:
+    """Reconcile observations, cooldown decisions and delayed refits without model replay.
+
+    The saved PSI, KS and WAPE observations are inputs here. Their underlying
+    weekly predictions are not stored, so this checks the policy and chronology,
+    not the statistical observations that require rerunning the simulation.
+    """
+    from pricepoint_core.schemas import FEATURE_NAMES
+
+    timeline = read_json(artifacts / "monitoring.json")
+    summary = read_json(artifacts / "monitoring_summary.json")
+    errors: list[str] = []
+    if not timeline:
+        return ["monitoring timeline must contain observations"]
+    compare(errors, "monitoring weeks", summary["weeks"], len(timeline))
+    compare(
+        errors, "monitoring triggers", summary["triggers"], sum(row["retrain"] for row in timeline)
+    )
+    completed_action = "refit completed using labels before decision cutoff"
+    compare(
+        errors,
+        "monitoring completed refits",
+        summary["completed_refits"],
+        sum(row["action"] == completed_action for row in timeline),
+    )
+    first_training_week = pl.read_parquet(
+        artifacts / "training_features.parquet", columns=["week"]
+    )["week"].min()
+    last_complete_week = (
+        pl.read_parquet(artifacts / "serving_panel.parquet", columns=["week", "is_complete_week"])
+        .filter(pl.col("is_complete_week"))["week"]
+        .max()
+    )
+    compare(
+        errors,
+        "monitoring warmup boundary",
+        timeline[0]["week"],
+        (first_training_week + timedelta(weeks=summary["warmup_weeks"])).isoformat(),
+    )
+    compare(
+        errors,
+        "monitoring final complete week",
+        timeline[-1]["week"],
+        last_complete_week.isoformat(),
+    )
+    pending: date | None = None
+    previous_week: date | None = None
+    previous_train_end: str | None = None
+    previous_reference_rows: int | None = None
+    last_fired: date | None = None
+    recent_errors: list[float] = []
+    baseline = timeline[0]["baseline_wape"]
+    if not math.isfinite(baseline) or baseline <= 0:
+        return [*errors, "monitoring baseline WAPE must be finite and positive"]
+    for index, row in enumerate(timeline):
+        label = f"monitoring row{index}/{row['week']}"
+        week = date.fromisoformat(row["week"])
+        cutoff = week - timedelta(weeks=1)
+        observed = week + timedelta(weeks=1)
+        compare(errors, label + " Monday", week.weekday(), 0)
+        if previous_week is not None:
+            compare(errors, label + " chronology", (week - previous_week).days, 7)
+        compare(
+            errors, label + " observation availability", row["observed_at"], observed.isoformat()
+        )
+        compare(errors, label + " decision cutoff", row["decision_as_of"], cutoff.isoformat())
+        compare(errors, label + " baseline", row["baseline_wape"], baseline)
+        compare(errors, label + " PSI feature schema", set(row["psi"]), set(FEATURE_NAMES))
+        if not all(math.isfinite(value) and value >= 0 for value in row["psi"].values()):
+            errors.append(label + " PSI observations must be finite and nonnegative")
+        if not math.isfinite(row["ks"]) or not 0 <= row["ks"] <= 1:
+            errors.append(label + " KS must lie in [0, 1]")
+        compare(errors, label + " undefined WAPE", row["undefined_wape"], row["wape"] is None)
+        if row["wape"] is None:
+            recent_errors.clear()
+        elif math.isfinite(row["wape"]) and row["wape"] >= 0:
+            recent_errors.append(row["wape"])
+        else:
+            errors.append(label + " WAPE must be finite and nonnegative or null")
+
+        activated = pending if pending is not None and pending <= cutoff else None
+        compare(
+            errors,
+            label + " completed action",
+            row["action"],
+            completed_action if activated is not None else "continued incumbent",
+        )
+        compare(
+            errors,
+            label + " completed trigger observation",
+            row["refit_trigger_observed_at"],
+            activated.isoformat() if activated is not None else None,
+        )
+        if date.fromisoformat(row["train_end"]) >= cutoff:
+            errors.append(label + " training labels reach or exceed the decision cutoff")
+        if not isinstance(row["reference_rows"], int) or row["reference_rows"] < 1:
+            errors.append(label + " reference population must be positive")
+        if activated is not None:
+            pending = None
+            compare(
+                errors,
+                label + " refit training end",
+                row["train_end"],
+                (cutoff - timedelta(weeks=1)).isoformat(),
+            )
+            if (
+                previous_reference_rows is not None
+                and row["reference_rows"] <= previous_reference_rows
+            ):
+                errors.append(label + " expanding refit must add reference observations")
+        elif previous_week is not None:
+            compare(errors, label + " unchanged training end", row["train_end"], previous_train_end)
+            compare(
+                errors,
+                label + " unchanged reference population",
+                row["reference_rows"],
+                previous_reference_rows,
+            )
+
+        drifted = any(value > 0.25 for value in row["psi"].values())
+        degraded = len(recent_errors) >= 4 and fmean(recent_errors[-4:]) > baseline * 1.1
+        cooling = last_fired is not None and (week - last_fired).days < 14
+        fired = (drifted or degraded) and not cooling
+        compare(errors, label + " trigger policy", row["retrain"], fired)
+        if fired:
+            pending = min(pending, observed) if pending is not None else observed
+            last_fired = week
+        compare(
+            errors,
+            label + " scheduled decision cutoff",
+            row["scheduled_as_of"],
+            pending.isoformat() if pending else None,
+        )
+        previous_week = week
+        previous_train_end = row["train_end"]
+        previous_reference_rows = row["reference_rows"]
+    return errors
+
+
+def verify_experiment(artifacts: Path) -> list[str]:
+    """Recompute the stated normal-approximation design from held-out residuals."""
+    report = read_json(artifacts / "experiment.json")
+    predictions = pl.read_parquet(artifacts / "predictions.parquet").filter(
+        (pl.col("model") == "C2") & (pl.col("fold") == 8)
+    )
+    residuals = np.log1p(predictions["actual"].to_numpy()) - np.log1p(
+        predictions["predicted"].to_numpy()
+    )
+    sigma = stdev(residuals.tolist())
+    normal = NormalDist()
+    effect = abs(report["assumed_elasticity"] * math.log1p(report["price_change"]))
+    critical = normal.inv_cdf(1 - report["alpha"] / 2) + normal.inv_cdf(report["power"])
+    units_per_arm = math.ceil(2 * critical**2 * sigma**2 / effect**2)
+    errors: list[str] = []
+    compare(errors, "experiment residual SD", report["sigma"], sigma)
+    compare(errors, "experiment units per arm", report["units_per_arm"], units_per_arm)
+    compare(
+        errors,
+        "experiment weeks",
+        report["weeks"],
+        math.ceil(2 * units_per_arm / report["products_per_week"]),
+    )
+    return errors
+
+
+def verify_synthetic(artifacts: Path) -> list[str]:
+    """Independently regenerate the published process and refit its OLS equations."""
+    report = read_json(artifacts / "synthetic_validation.json")
+    errors: list[str] = []
+    categories, products, weeks = 4, 32, 104
+    compare(errors, "synthetic rows", report["rows"], categories * products * weeks)
+    compare(errors, "synthetic products", report["products"], categories * products)
+    compare(errors, "synthetic weeks", report["weeks"], weeks)
+    compare(errors, "synthetic categories", report["categories"], categories)
+    compare(errors, "synthetic confidence level", report["confidence_level"], 0.95)
+    expected_groups = {f"synthetic_{index}" for index in range(categories)}
+    compare(
+        errors,
+        "synthetic estimate groups",
+        {row["category"] for row in report["estimates"]},
+        expected_groups,
+    )
+    compare(errors, "synthetic estimate population", len(report["estimates"]), categories)
+    shocks = np.random.default_rng(report["seed"]).normal(
+        0.0, 0.18, (categories, products, weeks, 2)
+    )
+    product = np.repeat(np.arange(products), weeks)
+    week = np.tile(np.arange(weeks), products)
+    sine = np.sin(2 * np.pi * week / 52)
+    cosine = np.cos(2 * np.pi * week / 52)
+    proxy = ((week + product) % 13) / 13
+    critical = NormalDist().inv_cdf(0.975)
+    recovered = 0
+    for row in report["estimates"]:
+        category = row["category"]
+        if category not in expected_groups:
+            continue
+        shock = shocks[int(category.rsplit("_", 1)[1])].reshape(-1, 2)
+        log_price = 0.8 + product / products + shock[:, 0]
+        outcome = (
+            5
+            + 3 * product / products
+            + report["true_coefficient"] * log_price
+            + 0.25 * sine
+            - 0.08 * cosine
+            + 0.003 * week
+            - 0.2 * proxy
+            + shock[:, 1]
+        )
+        controls = np.column_stack([log_price, sine, cosine, week, proxy])
+        covariance = {
+            "cov_type": "cluster",
+            "cov_kwds": {"groups": product, "use_correction": True},
+        }
+        before = sm.OLS(outcome, np.column_stack([np.ones(len(outcome)), log_price])).fit(
+            **covariance
+        )
+        within_y = outcome.reshape(products, weeks)
+        within_y = (within_y - within_y.mean(axis=1, keepdims=True)).reshape(-1)
+        within_x = controls.reshape(products, weeks, -1)
+        within_x = (within_x - within_x.mean(axis=1, keepdims=True)).reshape(-1, controls.shape[1])
+        after = sm.OLS(within_y, within_x).fit(**covariance)
+        for label, estimate, position in (("before", before, 1), ("after", after, 0)):
+            coefficient, se = float(estimate.params[position]), float(estimate.bse[position])
+            for suffix, expected in (
+                ("", coefficient),
+                ("_se", se),
+                ("_low", coefficient - critical * se),
+                ("_high", coefficient + critical * se),
+            ):
+                compare(
+                    errors,
+                    f"synthetic {category}/{label}{suffix}",
+                    row[label + suffix],
+                    expected,
+                    1e-7,
+                )
+        contains = bool(
+            after.params[0] - critical * after.bse[0]
+            <= report["true_coefficient"]
+            <= after.params[0] + critical * after.bse[0]
+        )
+        recovered += contains
+        compare(
+            errors, f"synthetic {category}/recovered", row["contains_true_coefficient"], contains
+        )
+        compare(
+            errors,
+            f"synthetic {category}/truth",
+            row["true_coefficient"],
+            report["true_coefficient"],
+        )
+        compare(errors, f"synthetic {category}/rows", row["rows"], products * weeks)
+        compare(errors, f"synthetic {category}/products", row["products"], products)
+    compare(errors, "synthetic recovered categories", report["categories_recovered"], recovered)
+    return errors
+
+
 def verify_shadow(artifacts: Path) -> list[str]:
     report = read_json(artifacts / "shadow.json")
     observations = read_json(artifacts / "shadow_observations.json")
@@ -339,6 +600,9 @@ def verify_all(root: Path = ROOT, *, reports: bool = True) -> list[str]:
     artifacts = root / "artifacts"
     errors = verify_backtest(artifacts) + verify_elasticity(artifacts) + verify_bundle(root)
     errors.extend(verify_shadow(artifacts))
+    errors.extend(verify_monitoring(artifacts))
+    errors.extend(verify_experiment(artifacts))
+    errors.extend(verify_synthetic(artifacts))
     for name in ("latency-gate.json", "loadtest-inprocess.json"):
         errors.extend(verify_latency(artifacts / name))
     container = artifacts / "loadtest-container.json"
@@ -375,8 +639,8 @@ def main(argv: list[str] | None = None) -> None:
     if errors:
         raise SystemExit("\n".join(errors))
     print(
-        "Artifact gate passed: metrics, intervals, elasticity, registry, latency "
-        "and publication evidence"
+        "Artifact gate passed: metrics, intervals, elasticity, registry, latency, "
+        "monitoring, experiment sizing, synthetic recovery and publication evidence"
     )
 
 

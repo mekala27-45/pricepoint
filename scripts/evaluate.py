@@ -33,6 +33,7 @@ def backtest() -> BacktestResult:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="X does not have valid feature names")
         result = run_backtest(features)
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     report = dict(result.artifacts)
     predictions = report.pop("predictions")
     pl.DataFrame(
@@ -42,7 +43,9 @@ def backtest() -> BacktestResult:
     report["runtime_seconds"] = time.perf_counter() - started
     report["platform"] = platform.platform()
     write_json(ARTIFACTS / "backtest.json", report)
-    (ROOT / ".cache/evaluation.pkl").write_bytes(pickle.dumps(result))
+    cache = ROOT / ".cache/evaluation.pkl"
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_bytes(pickle.dumps(result))
     result.train_frame.write_parquet(ARTIFACTS / "training_features.parquet")
     result.test_frame.write_parquet(ARTIFACTS / "test_features.parquet")
     print(json.dumps(report["summary"], indent=2), flush=True)
