@@ -4,6 +4,7 @@ The registry is created before results. Each claim identifies a JSON artifact,
 a dotted field path and the exact rendered text. Numeric markdown tables are
 generated from the same records and checked byte for byte.
 """
+
 from __future__ import annotations
 
 import json

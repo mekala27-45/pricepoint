@@ -1,0 +1,384 @@
+"""Recompute release figures from committed observations, offline."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+from datetime import date
+from pathlib import Path
+from statistics import NormalDist, fmean, stdev
+from typing import Any
+
+import numpy as np
+import polars as pl
+import statsmodels.api as sm
+
+ROOT = Path(__file__).resolve().parents[1]
+ARTIFACTS = ROOT / "artifacts"
+
+
+def read_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def compare(
+    errors: list[str], name: str, observed: Any, expected: Any, tolerance: float = 1e-9
+) -> None:
+    if observed is None or expected is None:
+        valid = observed is expected
+    elif isinstance(expected, (float, int)) and not isinstance(expected, bool):
+        valid = isinstance(observed, (float, int)) and math.isclose(
+            float(observed),
+            float(expected),
+            rel_tol=tolerance,
+            abs_tol=tolerance,
+        )
+    else:
+        valid = observed == expected
+    if not valid:
+        errors.append(f"{name}: stored {observed!r}, recomputed {expected!r}")
+
+
+def _wape(frame: pl.DataFrame) -> float | None:
+    denominator = float(frame["actual"].abs().sum())
+    if denominator == 0:
+        return None
+    return float((frame["actual"] - frame["predicted"]).abs().sum()) / denominator
+
+
+def verify_backtest(artifacts: Path) -> list[str]:
+    """Recompute fold/category errors, scale errors, summaries and held-out coverage."""
+    report = read_json(artifacts / "backtest.json")
+    predictions = pl.read_parquet(artifacts / "predictions.parquet")
+    training = pl.read_parquet(artifacts / "training_features.parquet")
+    errors: list[str] = []
+    key = pl.struct("fold", "model", "product_id")
+    compare(
+        errors,
+        "prediction unique keys",
+        predictions.select(key.n_unique()).item(),
+        predictions.height,
+    )
+    compare(errors, "temporal shuffle", report["methodology"]["shuffled"], False)
+    split_rows = {int(row["fold"]): row for row in report["split_metadata"]}
+    scale_cache: dict[int, pl.DataFrame] = {}
+    for fold, split in split_rows.items():
+        cutoff = date.fromisoformat(split["fit_end"])
+        fit = training.filter(pl.col("week") <= cutoff).sort("product_id", "week")
+        scale_cache[fold] = fit.group_by("product_id").agg(
+            pl.col("units").diff().abs().mean().alias("scale")
+        )
+        test_week = date.fromisoformat(split["test_week"])
+        compare(
+            errors,
+            f"fold{fold} decision gap",
+            (test_week - date.fromisoformat(split["decision_as_of"])).days,
+            7,
+        )
+        compare(errors, f"fold{fold} fit gap", (test_week - cutoff).days, 28)
+        compare(
+            errors,
+            f"fold{fold} calibration gap",
+            (test_week - date.fromisoformat(split["calibration_week"])).days,
+            14,
+        )
+    for row in report["folds"]:
+        fold = int(row["fold"])
+        subset = predictions.filter((pl.col("fold") == fold) & (pl.col("model") == row["model"]))
+        label = f"fold{fold}/{row['model']}"
+        compare(errors, label + " rows", row["rows"], subset.height)
+        compare(errors, label + " WAPE", row["wape"], _wape(subset))
+        scaled = subset.join(scale_cache[fold], on="product_id", how="left")
+        valid = scaled.filter(pl.col("scale") > 1e-12)
+        mase = (
+            float(((valid["actual"] - valid["predicted"]).abs() / valid["scale"]).mean())
+            if valid.height
+            else None
+        )
+        compare(errors, label + " MASE", row["mase"], mase)
+        compare(
+            errors,
+            label + " MASE exclusions",
+            row["mase_excluded_rows"],
+            subset.height - valid.height,
+        )
+        compare(
+            errors,
+            label + " prediction week",
+            subset["week"].unique().to_list(),
+            [row["test_week"]],
+        )
+    for row in report["category_metrics"]:
+        subset = predictions.filter(
+            (pl.col("category") == row["category"]) & (pl.col("model") == row["model"])
+        )
+        compare(errors, f"{row['model']}/{row['category']} WAPE", row["wape"], _wape(subset))
+        compare(errors, f"{row['model']}/{row['category']} rows", row["rows"], subset.height)
+    for row in report["summary"]:
+        for metric in ("wape", "mase"):
+            values = [
+                float(fold[metric])
+                for fold in report["folds"]
+                if fold["model"] == row["model"] and fold[metric] is not None
+            ]
+            compare(errors, f"{row['model']}/{metric} mean", row[metric]["mean"], fmean(values))
+            compare(
+                errors,
+                f"{row['model']}/{metric} sample SD",
+                row[metric]["std"],
+                stdev(values) if len(values) > 1 else None,
+            )
+            compare(errors, f"{row['model']}/{metric} folds", row[metric]["n"], len(values))
+    intervals = predictions.filter(pl.col("low").is_not_null() & pl.col("high").is_not_null())
+    coverage = report["coverage"]
+    actual_coverage = intervals.select(
+        ((pl.col("actual") >= pl.col("low")) & (pl.col("actual") <= pl.col("high"))).mean()
+    ).item()
+    compare(errors, "conformal total coverage", coverage["conformal"], actual_coverage)
+    compare(errors, "coverage rows", coverage["test_rows"], intervals.height)
+    quantile_hits = 0.0
+    quantile_rows = 0
+    for row in coverage["folds"]:
+        subset = intervals.filter(pl.col("fold") == row["fold"])
+        covered = subset.select(
+            ((pl.col("actual") >= pl.col("low")) & (pl.col("actual") <= pl.col("high"))).mean()
+        ).item()
+        compare(errors, f"fold{row['fold']} conformal coverage", row["conformal_coverage"], covered)
+        compare(
+            errors,
+            f"fold{row['fold']} interval width",
+            row["conformal_mean_width"],
+            (subset["high"] - subset["low"]).mean(),
+        )
+        quantile_hits += row["quantile_coverage"] * row["test_rows"]
+        quantile_rows += row["test_rows"]
+    # Quantile bounds are not stored individually; this verifies the weighted fold reduction.
+    compare(
+        errors, "weighted quantile coverage", coverage["quantile"], quantile_hits / quantile_rows
+    )
+    return errors
+
+
+def verify_elasticity(artifacts: Path) -> list[str]:
+    """Refit the final category associations and clustered uncertainty from stored training rows."""
+    report = read_json(artifacts / "backtest.json")
+    training = pl.read_parquet(artifacts / "training_features.parquet")
+    errors: list[str] = []
+    controls = ["log_price", "week_sin", "week_cos", "trend", "zero_fraction"]
+    critical = NormalDist().inv_cdf(0.975)
+    for row in report["elasticity"]:
+        if row["status"] != "estimated":
+            continue
+        subset = training.filter(pl.col("category") == row["category"]).with_columns(
+            pl.col("units").log1p().alias("log_units")
+        )
+        groups = subset["product_id"].to_numpy()
+        y = subset["log_units"].to_numpy()
+        x = subset.select(controls).to_numpy()
+        covariance: dict[str, Any] = {
+            "cov_type": "cluster",
+            "cov_kwds": {"groups": groups, "use_correction": True},
+        }
+        if subset["product_id"].n_unique() == 1:
+            covariance = {"cov_type": "HC3"}
+        before = sm.OLS(y, np.column_stack([np.ones(len(y)), x[:, 0]])).fit(**covariance)
+        centered = subset.with_columns(
+            *[
+                (pl.col(name) - pl.col(name).mean().over("product_id")).alias(name)
+                for name in [*controls, "log_units"]
+            ]
+        )
+        after = sm.OLS(centered["log_units"].to_numpy(), centered.select(controls).to_numpy()).fit(
+            **covariance
+        )
+        for label, estimate, position in (("before", before, 1), ("after", after, 0)):
+            coefficient = float(estimate.params[position])
+            se = float(estimate.bse[position])
+            compare(errors, f"{row['category']}/{label} coefficient", row[label], coefficient, 1e-7)
+            compare(
+                errors, f"{row['category']}/{label} standard error", row[label + "_se"], se, 1e-7
+            )
+            compare(
+                errors,
+                f"{row['category']}/{label} CI low",
+                row[label + "_low"],
+                coefficient - critical * se,
+                1e-7,
+            )
+            compare(
+                errors,
+                f"{row['category']}/{label} CI high",
+                row[label + "_high"],
+                coefficient + critical * se,
+                1e-7,
+            )
+        compare(errors, row["category"] + " observations", row["rows"], subset.height)
+        compare(
+            errors, row["category"] + " products", row["products"], subset["product_id"].n_unique()
+        )
+    return errors
+
+
+def verify_latency(path: Path) -> list[str]:
+    artifact = read_json(path)
+    errors: list[str] = []
+    samples = np.asarray(artifact["latency_samples_ms"], dtype=float)
+    if not len(samples) or not np.isfinite(samples).all() or (samples < 0).any():
+        return [f"{path.name}: latency samples must be nonempty, finite and nonnegative"]
+    for percentile in (50, 95, 99):
+        compare(
+            errors,
+            f"{path.name} p{percentile}",
+            artifact[f"p{percentile}_ms"],
+            float(np.percentile(samples, percentile)),
+        )
+    count = (
+        artifact["successful_requests"]
+        if "successful_requests" in artifact
+        else artifact["samples"]
+    )
+    compare(errors, path.name + " samples", count, len(samples))
+    if "errors" in artifact:
+        compare(errors, path.name + " request errors", artifact["errors"], 0)
+        compare(
+            errors,
+            path.name + " throughput",
+            artifact["throughput_rps"],
+            len(samples) / artifact["duration_actual_s"],
+        )
+    if "histogram" in artifact:
+        histogram = artifact["histogram"]
+        edges = [float(row["low_ms"]) for row in histogram]
+        edges.append(
+            float("inf") if histogram[-1]["high_ms"] is None else float(histogram[-1]["high_ms"])
+        )
+        expected, _ = np.histogram(samples, bins=edges)
+        compare(
+            errors, path.name + " histogram", [row["count"] for row in histogram], expected.tolist()
+        )
+        compare(
+            errors,
+            path.name + " histogram population",
+            sum(row["count"] for row in histogram),
+            len(samples),
+        )
+    return errors
+
+
+def verify_bundle(root: Path) -> list[str]:
+    bundle = read_json(root / "web/public/bundle.json")
+    report = read_json(root / "artifacts/backtest.json")
+    errors: list[str] = []
+    summaries = {row["model"]: row for row in report["summary"]}
+    for row in bundle["backtest"]["summary"]:
+        for metric in ("wape", "mase"):
+            for stat in ("mean", "std"):
+                compare(
+                    errors,
+                    f"bundle {row['model']}/{metric}/{stat}",
+                    row[f"{metric}_{stat}"],
+                    summaries[row["model"]][metric][stat],
+                )
+    folds = {(row["fold"], row["model"]): row for row in report["folds"]}
+    compare(errors, "bundle fold population", len(bundle["backtest"]["folds"]), len(folds))
+    for row in bundle["backtest"]["folds"]:
+        for field in ("wape", "mase", "rows", "test_week"):
+            compare(
+                errors,
+                f"bundle fold{row['fold']}/{row['model']}/{field}",
+                row[field],
+                folds[row["fold"], row["model"]][field],
+            )
+    groups = {row["category"]: row for row in report["elasticity"]}
+    compare(errors, "bundle elasticity population", len(bundle["elasticity"]), len(groups))
+    for row in bundle["elasticity"]:
+        for field in ("before", "after", "before_low", "before_high", "after_low", "after_high"):
+            if field in groups[row["category"]]:
+                compare(
+                    errors,
+                    f"bundle {row['category']}/{field}",
+                    row[field],
+                    groups[row["category"]][field],
+                )
+    for product in bundle["products"]:
+        for row in product["curve"]:
+            compare(
+                errors,
+                f"curve {product['id']}/{row['price']} revenue",
+                row["revenue"],
+                row["price"] * row["units"],
+            )
+            if not 0 <= row["interval_low"] <= row["interval_high"]:
+                errors.append(f"curve {product['id']}: invalid uncertainty interval")
+    return errors
+
+
+def verify_shadow(artifacts: Path) -> list[str]:
+    report = read_json(artifacts / "shadow.json")
+    observations = read_json(artifacts / "shadow_observations.json")
+    errors: list[str] = []
+    differences = [abs(row["incumbent_units"] - row["candidate_units"]) for row in observations]
+    compare(errors, "shadow samples", report["samples"], len(differences))
+    compare(errors, "shadow mean", report["mean_units"], fmean(differences))
+    for percentile in (50, 95, 99):
+        compare(
+            errors,
+            f"shadow p{percentile}",
+            report[f"p{percentile}_units"],
+            float(np.percentile(differences, percentile)),
+        )
+    for index, (row, difference) in enumerate(zip(observations, differences, strict=True)):
+        compare(errors, f"shadow observation{index}", row["absolute_disagreement"], difference)
+    return errors
+
+
+def verify_all(root: Path = ROOT, *, reports: bool = True) -> list[str]:
+    from pricepoint_models.registry import Registry
+
+    artifacts = root / "artifacts"
+    errors = verify_backtest(artifacts) + verify_elasticity(artifacts) + verify_bundle(root)
+    errors.extend(verify_shadow(artifacts))
+    for name in ("latency-gate.json", "loadtest-inprocess.json"):
+        errors.extend(verify_latency(artifacts / name))
+    container = artifacts / "loadtest-container.json"
+    if container.exists():
+        errors.extend(verify_latency(container))
+    registry = Registry(artifacts / "registry")
+    entries = registry.list()
+    if not entries or registry.incumbent_version() is None:
+        errors.append("Registry must contain an incumbent and versioned artifacts")
+    for entry in entries:
+        try:
+            registry.load(entry["version"])
+        except (ValueError, OSError) as error:
+            errors.append(f"registry {entry['version']}: {error}")
+    if reports:
+        from scripts.publish_results import render_sections
+
+        for name, contents in render_sections().items():
+            source = artifacts / "reports" / f"{name}.md"
+            if (
+                not source.exists()
+                or source.read_text(encoding="utf-8").strip() != contents.strip()
+            ):
+                errors.append(f"{name}: stored report fragment differs from recomputed section")
+    return errors
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=ROOT)
+    parser.add_argument("--without-reports", action="store_true")
+    args = parser.parse_args(argv)
+    errors = verify_all(args.root, reports=not args.without_reports)
+    if errors:
+        raise SystemExit("\n".join(errors))
+    print(
+        "Artifact gate passed: metrics, intervals, elasticity, registry, latency "
+        "and publication evidence"
+    )
+
+
+if __name__ == "__main__":
+    main()

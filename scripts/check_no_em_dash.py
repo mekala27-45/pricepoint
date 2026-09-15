@@ -1,11 +1,25 @@
 """Reject the forbidden character in source, docs and generated text."""
+
 from __future__ import annotations
 
 import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TEXT_SUFFIXES = {".py", ".md", ".json", ".yml", ".yaml", ".toml", ".tsx", ".ts", ".css", ".html", ".txt", ".svg"}
+TEXT_SUFFIXES = {
+    ".py",
+    ".md",
+    ".json",
+    ".yml",
+    ".yaml",
+    ".toml",
+    ".tsx",
+    ".ts",
+    ".css",
+    ".html",
+    ".txt",
+    ".svg",
+}
 
 
 def violations(root: Path, paths: list[str]) -> list[str]:
